@@ -8,23 +8,24 @@ struct SymbolCoordinates {
 }
 
 #[derive(Eq, PartialEq, Hash)]
-struct NumberCoordinates {
+struct HorizontalSegment {
     x_min: i32,
     x_max: i32,
-    y: i32,
 }
 
 struct EngineSchematic {
     symbols: HashMap<SymbolCoordinates, char>,
-    numbers: HashMap<NumberCoordinates, u32>,
+    numbers: Vec<Vec<(HorizontalSegment, u32)>>,
 }
 
 #[aoc_generator(day3)]
 fn parse_input(engine_schematic: &str) -> EngineSchematic {
     let mut symbols = HashMap::new();
-    let mut numbers = HashMap::new();
+    let mut numbers = Vec::new();
 
     for (y, line) in engine_schematic.lines().enumerate() {
+        let mut line_numbers = Vec::new();
+
         let mut is_number = false;
         let mut number = 0;
         let mut number_x_min = 0;
@@ -33,26 +34,25 @@ fn parse_input(engine_schematic: &str) -> EngineSchematic {
         for (x, character) in line.chars().enumerate() {
             match character {
                 digit if digit.is_ascii_digit() => {
-                    if is_number {
-                        number_x_max = x as i32;
-                    } else {
-                        number_x_min = x as i32;
-                        number_x_max = x as i32;
+                    if !is_number {
                         is_number = true;
+                        number_x_min = x as i32;
                     }
+
+                    number_x_max = x as i32;
 
                     number = 10 * number + digit.to_digit(10).unwrap();
                 }
                 symbol => {
                     if is_number {
-                        numbers.insert(
-                            NumberCoordinates {
+                        line_numbers.push((
+                            HorizontalSegment {
                                 x_min: number_x_min,
                                 x_max: number_x_max,
-                                y: y as i32,
                             },
                             number,
-                        );
+                        ));
+
                         is_number = false;
                         number = 0;
                     }
@@ -74,15 +74,16 @@ fn parse_input(engine_schematic: &str) -> EngineSchematic {
         }
 
         if is_number {
-            numbers.insert(
-                NumberCoordinates {
+            line_numbers.push((
+                HorizontalSegment {
                     x_min: number_x_min,
                     x_max: number_x_max,
-                    y: y as i32,
                 },
                 number,
-            );
+            ));
         }
+
+        numbers.push(line_numbers)
     }
 
     EngineSchematic { symbols, numbers }
@@ -92,16 +93,30 @@ fn parse_input(engine_schematic: &str) -> EngineSchematic {
 fn part1(engine_schematic: &EngineSchematic) -> u32 {
     let mut part_numbers_sum = 0;
 
-    'numbers: for (number_coordinates, number) in engine_schematic.numbers.iter() {
-        for y in number_coordinates.y - 1..=number_coordinates.y + 1 {
-            for x in number_coordinates.x_min - 1..=number_coordinates.x_max + 1 {
-                if engine_schematic
-                    .symbols
-                    .contains_key(&SymbolCoordinates { x, y })
-                {
+    for (line_y, line) in engine_schematic.numbers.iter().enumerate() {
+        for (segment, number) in line.iter() {
+            for x in segment.x_min - 1..=segment.x_max + 1 {
+                if engine_schematic.symbols.contains_key(&SymbolCoordinates {
+                    x,
+                    y: line_y as i32 - 1,
+                }) || engine_schematic.symbols.contains_key(&SymbolCoordinates {
+                    x,
+                    y: line_y as i32 + 1,
+                }) {
                     part_numbers_sum += number;
-                    continue 'numbers;
+                    break;
                 }
+            }
+
+            if engine_schematic.symbols.contains_key(&SymbolCoordinates {
+                x: segment.x_min - 1,
+                y: line_y as i32,
+            }) || engine_schematic.symbols.contains_key(&SymbolCoordinates {
+                x: segment.x_max + 1,
+                y: line_y as i32,
+            }) {
+                part_numbers_sum += number;
+                break;
             }
         }
     }
@@ -119,20 +134,26 @@ fn part2(engine_schematic: &EngineSchematic) -> u32 {
         .filter(|(_, symbol)| **symbol == '*')
         .map(|(coordinates, _)| coordinates)
     {
-        let numbers: Vec<_> = engine_schematic
-            .numbers
-            .iter()
-            .filter(|(number_coordinates, _)| {
-                gear_coordinates.x >= number_coordinates.x_min - 1
-                    && gear_coordinates.x <= number_coordinates.x_max + 1
-                    && gear_coordinates.y >= number_coordinates.y - 1
-                    && gear_coordinates.y <= number_coordinates.y + 1
-            })
-            .map(|(_, number)| number)
-            .collect();
+        let mut numbers = Vec::new();
+
+        for line_y in gear_coordinates.y - 1..=gear_coordinates.y + 1 {
+            if line_y >= 0 {
+                if let Some(line) = engine_schematic.numbers.get(line_y as usize) {
+                    for (segment, number) in line.iter() {
+                        if gear_coordinates.x <= segment.x_max + 1
+                            && gear_coordinates.x >= segment.x_min - 1
+                        {
+                            numbers.push(*number);
+                        } else if gear_coordinates.x < segment.x_min - 1 {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         if numbers.len() == 2 {
-            gear_ratios_sum += **numbers.first().unwrap() * **numbers.last().unwrap();
+            gear_ratios_sum += numbers.first().unwrap() * numbers.last().unwrap();
         }
     }
 
