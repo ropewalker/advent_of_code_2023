@@ -5,7 +5,6 @@ type Position = (i32, i32);
 type Direction = (i32, i32);
 type Pipe = [Direction; 2];
 
-#[derive(Clone)]
 struct Sketch {
     starting_position: Position,
     pipes: HashMap<Position, Pipe>,
