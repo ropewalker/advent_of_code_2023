@@ -22,36 +22,27 @@ fn parse_input(image: &str) -> Vec<Coordinates> {
 fn sum_of_distances(image: &[Coordinates], expansion_factor: i64) -> i64 {
     let mut expanded_image = image.to_vec();
 
-    let max_x = *image
-        .iter()
-        .max_by(|a, b| a.0.cmp(&b.0))
-        .map(|(x, _)| x)
-        .unwrap();
-    let max_y = *image
-        .iter()
-        .max_by(|a, b| a.1.cmp(&b.1))
-        .map(|(_, y)| y)
-        .unwrap();
+    expanded_image.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
-    (0..=max_x)
-        .rev()
-        .filter(|x| !image.iter().any(|coordinates| coordinates.0 == *x))
-        .for_each(|x| {
-            expanded_image
-                .iter_mut()
-                .filter(|coordinates| coordinates.0 >= x)
-                .for_each(|coordinates| coordinates.0 += expansion_factor - 1)
-        });
+    let mut multiplier = 0;
+    let mut last_x = 0;
 
-    (0..=max_y)
-        .rev()
-        .filter(|y| !image.iter().any(|coordinates| coordinates.1 == *y))
-        .for_each(|y| {
-            expanded_image
-                .iter_mut()
-                .filter(|coordinates| coordinates.1 >= y)
-                .for_each(|coordinates| coordinates.1 += expansion_factor - 1)
-        });
+    for coordinates in expanded_image.iter_mut() {
+        multiplier += i64::max(coordinates.0 - last_x - 1, 0);
+        last_x = coordinates.0;
+        coordinates.0 += multiplier * (expansion_factor - 1);
+    }
+
+    expanded_image.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+
+    let mut multiplier = 0;
+    let mut last_y = 0;
+
+    for coordinates in expanded_image.iter_mut() {
+        multiplier += i64::max(coordinates.1 - last_y - 1, 0);
+        last_y = coordinates.1;
+        coordinates.1 += multiplier * (expansion_factor - 1);
+    }
 
     let mut distance_sum = 0;
 
