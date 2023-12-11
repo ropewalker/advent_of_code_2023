@@ -24,24 +24,24 @@ fn sum_of_distances(image: &[Coordinates], expansion_factor: i64) -> i64 {
 
     expanded_image.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
-    let mut multiplier = 0;
-    let mut last_x = 0;
+    let mut empty_columns_count = 0;
+    let mut last_non_empty_column = 0;
 
     for coordinates in expanded_image.iter_mut() {
-        multiplier += i64::max(coordinates.0 - last_x - 1, 0);
-        last_x = coordinates.0;
-        coordinates.0 += multiplier * (expansion_factor - 1);
+        empty_columns_count += i64::max(coordinates.0 - last_non_empty_column - 1, 0);
+        last_non_empty_column = coordinates.0;
+        coordinates.0 += empty_columns_count * (expansion_factor - 1);
     }
 
     expanded_image.sort_unstable_by(|a, b| a.1.cmp(&b.1));
 
-    let mut multiplier = 0;
-    let mut last_y = 0;
+    let mut empty_rows_count = 0;
+    let mut last_non_empty_row = 0;
 
     for coordinates in expanded_image.iter_mut() {
-        multiplier += i64::max(coordinates.1 - last_y - 1, 0);
-        last_y = coordinates.1;
-        coordinates.1 += multiplier * (expansion_factor - 1);
+        empty_rows_count += i64::max(coordinates.1 - last_non_empty_row - 1, 0);
+        last_non_empty_row = coordinates.1;
+        coordinates.1 += empty_rows_count * (expansion_factor - 1);
     }
 
     let mut distance_sum = 0;
