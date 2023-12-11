@@ -1,5 +1,4 @@
 use aoc_runner_derive::{aoc, aoc_generator};
-use std::collections::HashSet;
 
 type Coordinates = (i64, i64);
 
@@ -21,6 +20,8 @@ fn parse_input(image: &str) -> Vec<Coordinates> {
 }
 
 fn sum_of_distances(image: &[Coordinates], expansion_factor: i64) -> i64 {
+    let mut expanded_image = image.to_vec();
+
     let max_x = *image
         .iter()
         .max_by(|a, b| a.0.cmp(&b.0))
@@ -32,37 +33,35 @@ fn sum_of_distances(image: &[Coordinates], expansion_factor: i64) -> i64 {
         .map(|(_, y)| y)
         .unwrap();
 
-    let empty_columns = (0..max_x)
+    (0..=max_x)
+        .rev()
         .filter(|x| !image.iter().any(|coordinates| coordinates.0 == *x))
-        .collect::<HashSet<_>>();
-    let empty_rows = (0..max_y)
+        .for_each(|x| {
+            expanded_image
+                .iter_mut()
+                .filter(|coordinates| coordinates.0 >= x)
+                .for_each(|coordinates| coordinates.0 += expansion_factor - 1)
+        });
+
+    (0..=max_y)
+        .rev()
         .filter(|y| !image.iter().any(|coordinates| coordinates.1 == *y))
-        .collect::<HashSet<_>>();
+        .for_each(|y| {
+            expanded_image
+                .iter_mut()
+                .filter(|coordinates| coordinates.1 >= y)
+                .for_each(|coordinates| coordinates.1 += expansion_factor - 1)
+        });
 
     let mut distance_sum = 0;
 
-    for i in 0..image.len() - 1 {
-        for j in i + 1..image.len() {
-            let coordinates_i = image[i];
-            let coordinates_j = image[j];
+    for i in 0..expanded_image.len() - 1 {
+        for j in i + 1..expanded_image.len() {
+            let coordinates_i = expanded_image[i];
+            let coordinates_j = expanded_image[j];
 
             distance_sum += (coordinates_j.0 - coordinates_i.0).abs()
-                + (coordinates_j.1 - coordinates_i.1).abs()
-                + ((empty_columns
-                    .iter()
-                    .filter(|x| {
-                        **x > i64::min(coordinates_i.0, coordinates_j.0)
-                            && **x < i64::max(coordinates_i.0, coordinates_j.0)
-                    })
-                    .count() as i64)
-                    + (empty_rows
-                        .iter()
-                        .filter(|y| {
-                            **y > i64::min(coordinates_i.1, coordinates_j.1)
-                                && **y < i64::max(coordinates_i.1, coordinates_j.1)
-                        })
-                        .count() as i64))
-                    * (expansion_factor - 1);
+                + (coordinates_j.1 - coordinates_i.1).abs();
         }
     }
 
