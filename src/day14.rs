@@ -1,8 +1,6 @@
 use crate::day14::Tile::*;
 use aoc_runner_derive::{aoc, aoc_generator};
 
-type Coordinates = (usize, usize);
-
 #[derive(Eq, PartialEq, Clone, Copy)]
 enum Tile {
     Rounded,
