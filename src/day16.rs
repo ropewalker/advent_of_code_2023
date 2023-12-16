@@ -204,4 +204,9 @@ mod tests {
     fn part1_example() {
         assert_eq!(part1(&parse_input(TEST_INPUT)), 46);
     }
+
+    #[test]
+    fn part2_example() {
+        assert_eq!(part2(&parse_input(TEST_INPUT)), 51);
+    }
 }
