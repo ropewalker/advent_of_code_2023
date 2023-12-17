@@ -1,15 +1,16 @@
 use aoc_runner_derive::{aoc, aoc_generator};
-use std::collections::{HashMap, VecDeque};
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 use std::ops::{Add, AddAssign};
 use Direction::*;
 
 type Coordinates = (i32, i32);
 
-#[derive(Eq, PartialEq, Copy, Clone, Hash)]
+#[derive(Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
 enum Direction {
     Up,
-    Down,
     Left,
+    Down,
     Right,
 }
 
@@ -74,6 +75,34 @@ fn parse_input(heat_loss_map: &str) -> Vec<Vec<usize>> {
     parser!(lines(digit+)).parse(heat_loss_map).unwrap()
 }
 
+#[derive(Eq, PartialEq)]
+struct State {
+    coordinates: Coordinates,
+    direction: Direction,
+    heat_loss: usize,
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other
+            .heat_loss
+            .cmp(&self.heat_loss)
+            .then_with(|| {
+                (self.coordinates.0 + self.coordinates.1)
+                    .cmp(&(other.coordinates.0 + other.coordinates.1))
+            })
+            .then_with(|| other.direction.cmp(&self.direction))
+            .then_with(|| self.coordinates.0.cmp(&other.coordinates.0))
+            .then_with(|| self.coordinates.1.cmp(&other.coordinates.1))
+    }
+}
+
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 fn min_heat_loss(
     heat_loss_map: &[Vec<usize>],
     min_consecutive: usize,
@@ -83,12 +112,29 @@ fn min_heat_loss(
     let max_y = heat_loss_map.len() as i32 - 1;
 
     let mut visited: HashMap<(Coordinates, Direction), usize> = HashMap::new();
-    let mut nodes: VecDeque<((Coordinates, Direction), usize)> =
-        VecDeque::from([(((1, 0), Right), 0), (((0, 1), Down), 0)]);
+
+    let mut nodes: BinaryHeap<State> = BinaryHeap::new();
+
+    nodes.push(State {
+        coordinates: (1, 0),
+        direction: Right,
+        heat_loss: 0,
+    });
+
+    nodes.push(State {
+        coordinates: (0, 1),
+        direction: Down,
+        heat_loss: 0,
+    });
 
     let mut min_heat_loss: Option<usize> = None;
 
-    while let Some(((coordinates, direction), heat_loss)) = nodes.pop_front() {
+    while let Some(State {
+        coordinates,
+        direction,
+        heat_loss,
+    }) = nodes.pop()
+    {
         let prev_heat_loss = visited
             .entry((coordinates, direction))
             .or_insert(heat_loss + 1);
@@ -124,14 +170,16 @@ fn min_heat_loss(
             }
 
             if step >= min_consecutive as i32 - 1 {
-                nodes.push_back((
-                    (coordinates + direction.turn_left(), direction.turn_left()),
+                nodes.push(State {
+                    coordinates: coordinates + direction.turn_left(),
+                    direction: direction.turn_left(),
                     heat_loss,
-                ));
-                nodes.push_back((
-                    (coordinates + direction.turn_right(), direction.turn_right()),
+                });
+                nodes.push(State {
+                    coordinates: coordinates + direction.turn_right(),
+                    direction: direction.turn_right(),
                     heat_loss,
-                ));
+                });
             }
 
             coordinates += direction;
