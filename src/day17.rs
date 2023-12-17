@@ -1,6 +1,6 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::collections::{HashMap, VecDeque};
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 use Direction::*;
 
 type Coordinates = (i32, i32);
@@ -48,6 +48,14 @@ impl Add<Direction> for Coordinates {
     }
 }
 
+impl AddAssign<Direction> for Coordinates {
+    fn add_assign(&mut self, rhs: Direction) {
+        let rhs: (i32, i32) = rhs.into();
+
+        *self = (self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
+
 impl Direction {
     fn turn_right(&self) -> Self {
         let coordinates: Coordinates = (*self).into();
@@ -66,9 +74,6 @@ fn parse_input(heat_loss_map: &str) -> Vec<Vec<usize>> {
     parser!(lines(digit+)).parse(heat_loss_map).unwrap()
 }
 
-type State = (Coordinates, Direction, usize);
-type Node = (State, usize);
-
 fn min_heat_loss(
     heat_loss_map: &[Vec<usize>],
     min_consecutive: usize,
@@ -77,61 +82,59 @@ fn min_heat_loss(
     let max_x = heat_loss_map[0].len() as i32 - 1;
     let max_y = heat_loss_map.len() as i32 - 1;
 
-    let mut visited: HashMap<State, usize> = HashMap::new();
-    let mut nodes: VecDeque<Node> =
-        VecDeque::from([(((0, 0), Right, 0), 0), (((0, 0), Down, 0), 0)]);
+    let mut visited: HashMap<(Coordinates, Direction), usize> = HashMap::new();
+    let mut nodes: VecDeque<((Coordinates, Direction), usize)> =
+        VecDeque::from([(((1, 0), Right), 0), (((0, 1), Down), 0)]);
 
     let mut min_heat_loss: Option<usize> = None;
 
-    while let Some(((coordinates, direction, straight_line_len), heat_loss)) = nodes.pop_front() {
-        let mut new_states = Vec::new();
+    while let Some(((coordinates, direction), heat_loss)) = nodes.pop_front() {
+        let prev_heat_loss = visited
+            .entry((coordinates, direction))
+            .or_insert(heat_loss + 1);
 
-        if straight_line_len < max_consecutive {
-            new_states.push((coordinates + direction, direction, straight_line_len + 1));
+        if *prev_heat_loss > heat_loss {
+            *prev_heat_loss = heat_loss;
+        } else {
+            continue;
         }
 
-        if straight_line_len >= min_consecutive {
-            new_states.push((
-                coordinates + direction.turn_left(),
-                direction.turn_left(),
-                1,
-            ));
-            new_states.push((
-                coordinates + direction.turn_right(),
-                direction.turn_right(),
-                1,
-            ));
-        }
+        let mut heat_loss = heat_loss;
+        let mut coordinates = coordinates;
 
-        for new_state in new_states.into_iter() {
-            let (new_coordinates, new_direction, new_straight_line_len) = new_state;
-
-            if new_coordinates.0 >= 0
-                && new_coordinates.0 <= max_x
-                && new_coordinates.1 >= 0
-                && new_coordinates.1 <= max_y
+        for step in 0..max_consecutive as i32 {
+            if coordinates.0 < 0
+                || coordinates.0 > max_x
+                || coordinates.1 < 0
+                || coordinates.1 > max_y
             {
-                let new_heat_loss = heat_loss
-                    + heat_loss_map[new_coordinates.1 as usize][new_coordinates.0 as usize];
-
-                let prev_heat_loss = visited.entry(new_state).or_insert(new_heat_loss + 1);
-
-                if *prev_heat_loss > new_heat_loss {
-                    *prev_heat_loss = new_heat_loss;
-
-                    if new_coordinates == (max_x, max_y)
-                        && new_straight_line_len >= min_consecutive
-                        && min_heat_loss.unwrap_or(new_heat_loss + 1) > new_heat_loss
-                    {
-                        min_heat_loss = Some(new_heat_loss);
-                    }
-
-                    nodes.push_back((
-                        (new_coordinates, new_direction, new_straight_line_len),
-                        new_heat_loss,
-                    ));
-                }
+                break;
             }
+
+            heat_loss += heat_loss_map[coordinates.1 as usize][coordinates.0 as usize];
+
+            if coordinates == (max_x, max_y) {
+                if min_heat_loss.unwrap_or(heat_loss + 1) > heat_loss
+                    && step >= min_consecutive as i32 - 1
+                {
+                    min_heat_loss = Some(heat_loss);
+                }
+
+                break;
+            }
+
+            if step >= min_consecutive as i32 - 1 {
+                nodes.push_back((
+                    (coordinates + direction.turn_left(), direction.turn_left()),
+                    heat_loss,
+                ));
+                nodes.push_back((
+                    (coordinates + direction.turn_right(), direction.turn_right()),
+                    heat_loss,
+                ));
+            }
+
+            coordinates += direction;
         }
     }
 
