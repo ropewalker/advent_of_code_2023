@@ -1,5 +1,4 @@
 use aoc_runner_derive::{aoc, aoc_generator};
-use std::collections::HashMap;
 use std::ops::{Add, AddAssign, Mul};
 use Direction::*;
 
@@ -53,108 +52,23 @@ impl Mul<i64> for Direction {
 
 fn lagoon_volume(dig_plan: &[(Direction, i64)]) -> i64 {
     let mut coordinates = (0, 0);
+    let mut double_area = 0;
+    let mut perimeter = 0;
 
-    let mut horizontal_edges: HashMap<i64, Vec<(i64, i64)>> = HashMap::new();
-    let mut vertical_edges: HashMap<i64, Vec<(i64, i64)>> = HashMap::new();
-    let mut vertices = vec![coordinates];
+    let multiplier = 2;
 
     for (direction, length) in dig_plan {
-        let shift = *direction * *length;
+        let shift = *direction * (*length * multiplier);
         let new_coordinates = (coordinates.0 + shift.0, coordinates.1 + shift.1);
 
-        match direction {
-            Right | Left => horizontal_edges.entry(coordinates.1).or_default().push((
-                i64::min(coordinates.0, new_coordinates.0),
-                i64::max(coordinates.0, new_coordinates.0),
-            )),
-            Down | Up => vertical_edges.entry(coordinates.0).or_default().push((
-                i64::min(coordinates.1, new_coordinates.1),
-                i64::max(coordinates.1, new_coordinates.1),
-            )),
-        };
+        double_area += coordinates.0 * new_coordinates.1 - coordinates.1 * new_coordinates.0;
+        perimeter += i64::abs(coordinates.0 - new_coordinates.0)
+            + i64::abs(coordinates.1 - new_coordinates.1);
 
         coordinates = new_coordinates;
-        vertices.push(coordinates);
     }
 
-    let mut count = 0;
-
-    let mut ordinates = vertices.iter().map(|(_x, y)| *y).collect::<Vec<_>>();
-    ordinates.sort_unstable();
-    ordinates.dedup();
-
-    let mut abscissas = vertices.iter().map(|(x, _y)| *x).collect::<Vec<_>>();
-    abscissas.sort_unstable();
-    abscissas.dedup();
-
-    for y_window in ordinates.windows(2) {
-        let y0 = y_window[0];
-        let y1 = y_window[1];
-
-        let mut inside = false;
-
-        for x_window in abscissas.windows(2) {
-            let x0 = x_window[0];
-            let x1 = x_window[1];
-
-            if vertical_edges
-                .get(&x0)
-                .unwrap()
-                .iter()
-                .any(|(start_y, end_y)| *start_y <= y0 && *end_y >= y1)
-            {
-                inside = !inside;
-            }
-
-            if inside {
-                count += i64::max(0, x1 - x0 - 1) * i64::max(0, y1 - y0 - 1);
-
-                if !horizontal_edges
-                    .get(&y0)
-                    .unwrap()
-                    .iter()
-                    .any(|(start_x, end_x)| *start_x <= x0 && *end_x >= x1)
-                {
-                    count += i64::max(0, x1 - x0 - 1);
-                }
-
-                if !vertical_edges
-                    .get(&x0)
-                    .unwrap()
-                    .iter()
-                    .any(|(start_y, end_y)| *start_y <= y0 && *end_y >= y1)
-                {
-                    count += i64::max(0, y1 - y0 - 1);
-                }
-
-                if !horizontal_edges
-                    .get(&y0)
-                    .unwrap()
-                    .iter()
-                    .any(|(start_x, end_x)| *start_x <= x0 && *end_x >= x0)
-                    && !vertical_edges
-                        .get(&x0)
-                        .unwrap()
-                        .iter()
-                        .any(|(start_y, end_y)| *start_y <= y0 && *end_y >= y0)
-                {
-                    count += 1;
-                }
-            }
-        }
-    }
-
-    count += horizontal_edges
-        .values()
-        .flat_map(|v| v.iter().map(|(x0, x1)| x1 - x0))
-        .sum::<i64>();
-
-    count += vertical_edges
-        .values()
-        .flat_map(|v| v.iter().map(|(y0, y1)| y1 - y0))
-        .sum::<i64>();
-
-    count
+    (double_area / 2 + perimeter + 4) / (multiplier * multiplier)
 }
 
 #[aoc_generator(day18)]
